@@ -307,9 +307,13 @@ impl Transcoder {
     }
 
     /// Queue a conversion. `urgent` puts it first (someone wants to watch it).
-    pub fn enqueue(&self, src: PathBuf, subs: Vec<PathBuf>, urgent: bool) {
+    pub fn enqueue(&self, src: PathBuf, subs: Vec<PathBuf>, urgent: bool) -> CacheState {
         let target = self.cache_file(&src, &subs);
-        self.push_job(Job { src, subs, burn: None, target }, urgent);
+        let st = self.target_state(&target);
+        if matches!(st, CacheState::Waiting) {
+            self.push_job(Job { src, subs, burn: None, target }, urgent);
+        }
+        st
     }
 
     /// Copy of `src` with `sub` burned into the picture, for players that
@@ -320,13 +324,24 @@ impl Transcoder {
 
     /// State of the burned-in copy; queues it (first in line) if missing.
     pub fn burned(&self, src: &Path, sub: &Path) -> CacheState {
+        self.queue_burn(src, sub, true)
+    }
+
+    /// State of the burned-in copy; queues it if missing (`urgent`: first
+    /// in line, otherwise at the end).
+    pub fn queue_burn(&self, src: &Path, sub: &Path, urgent: bool) -> CacheState {
         let target = self.burn_file(src, sub);
         let st = self.target_state(&target);
         if matches!(st, CacheState::Waiting) {
             let job = Job { src: src.to_path_buf(), subs: Vec::new(), burn: Some(sub.to_path_buf()), target };
-            self.push_job(job, true);
+            self.push_job(job, urgent);
         }
         st
+    }
+
+    /// Videos waiting in the queue (not counting the one being converted).
+    pub fn queued(&self) -> usize {
+        self.jobs.lock().unwrap().queue.len()
     }
 
     fn push_job(&self, job: Job, urgent: bool) {
@@ -372,6 +387,13 @@ impl Transcoder {
         });
     }
 
+    fn waiting_note(&self) -> String {
+        match self.queued() {
+            0 => String::new(),
+            n => format!(" [{n} more waiting]"),
+        }
+    }
+
     fn convert(&self, job: &Job) -> bool {
         let name = job.src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let target = job.target.clone();
@@ -394,9 +416,9 @@ impl Transcoder {
                 println!(" Cannot read subtitle {}: {e}", sub.display());
                 return false;
             }
-            println!(" Burning subtitles into {name} for Samsung (re-encodes the video, takes a while)");
+            println!(" Burning subtitles into {name} for Samsung (re-encodes the video, takes a while){}", self.waiting_note());
         } else {
-            println!(" Converting for TV: {name}");
+            println!(" Converting for TV: {name}{}", self.waiting_note());
         }
         let started = Instant::now();
 
