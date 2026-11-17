@@ -121,6 +121,13 @@ impl Ctx {
     /// `None` when there is no such subtitle file.
     pub fn samsung_burn(&self, rel: &str) -> Option<CacheState> {
         let tc = self.tc?;
+        let (full, sub) = self.burn_source(rel)?;
+        Some(tc.burned(&full, &sub))
+    }
+
+    /// With `--sub-lang`: the video at `rel` and its subtitle file in that
+    /// language (`Movie.ms.srt`), if there is one.
+    pub fn burn_source(&self, rel: &str) -> Option<(PathBuf, PathBuf)> {
         let lang = self.sub_lang.as_deref()?;
         if mime_for(rel).1 != Kind::Video {
             return None;
@@ -131,7 +138,7 @@ impl Ctx {
             .sibling_subs(rel)
             .into_iter()
             .find(|s| sub_tag(&s.to_string_lossy(), name).eq_ignore_ascii_case(lang))?;
-        Some(tc.burned(&full, &sub))
+        Some((full, sub))
     }
 
     /// For Samsung: the copy of `rel` with its subtitle files muxed in, if

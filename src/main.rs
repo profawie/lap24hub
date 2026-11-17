@@ -88,6 +88,57 @@ fn cache_dir(root: &std::path::Path) -> PathBuf {
     fallback
 }
 
+/// Startup scan: queue every missing converted copy and report the totals.
+fn prepare_all(ctx: &http::Ctx, tc: &'static transcode::Transcoder, videos: &[String]) {
+    use transcode::CacheState;
+    let (mut burn_ready, mut burn_queued, mut tv_ready, mut tv_queued, mut failed) = (0, 0, 0, 0, 0);
+    let mut count = |st: CacheState, ready: &mut usize, queued: &mut usize| match st {
+        CacheState::Ready(_) => *ready += 1,
+        CacheState::Failed => failed += 1,
+        CacheState::Waiting | CacheState::Converting(_) => *queued += 1,
+    };
+    let mut no_sub = Vec::new();
+    if ctx.sub_lang.is_some() {
+        for rel in videos {
+            match ctx.burn_source(rel) {
+                Some((full, sub)) => count(tc.queue_burn(&full, &sub, false), &mut burn_ready, &mut burn_queued),
+                None => no_sub.push(rel.as_str()),
+            }
+        }
+    }
+    for rel in videos {
+        let Some((full, _)) = util::safe_join(&ctx.root, rel) else { continue };
+        if tc.needs_transcode(&full) {
+            count(tc.enqueue(full, ctx.sibling_subs(rel), false), &mut tv_ready, &mut tv_queued);
+        }
+    }
+
+    println!();
+    println!(" Startup scan done ({} videos):", videos.len());
+    if let Some(lang) = &ctx.sub_lang {
+        println!(
+            "   Samsung (subtitles burned in): {burn_ready} ready, {burn_queued} to convert, {} without a .{lang}.srt",
+            no_sub.len()
+        );
+        for rel in no_sub.iter().take(5) {
+            println!("     no subtitle: {rel}");
+        }
+        if no_sub.len() > 5 {
+            println!("     ... and {} more", no_sub.len() - 5);
+        }
+    }
+    println!("   TV (HEVC -> H.264 copy)      : {tv_ready} ready, {tv_queued} to convert");
+    if failed > 0 {
+        println!("   {failed} failed earlier in this run and will not be retried until restart");
+    }
+    if burn_queued + tv_queued > 0 {
+        println!("   Converting in the background, one at a time. Videos can be played meanwhile.");
+    } else {
+        println!("   Everything is ready.");
+    }
+    println!();
+}
+
 /// Keep the console window open when started by double-click so errors can be read.
 fn fail(msg: &str) -> ! {
     eprintln!("\nERROR: {msg}");
@@ -159,22 +210,18 @@ fn main() {
 
     if let Some(tc) = tc {
         tc.start_worker();
-        // Probe every video in the background and queue the ones the TV
-        // can't play for conversion, in folder order.
+        // Prepare every video at startup instead of waiting for a TV to ask:
+        // first the Samsung copies with the --sub-lang subtitles burned in,
+        // then the H.264 copies for TVs that can't play HEVC. Copies already
+        // in the cache are skipped. A video someone starts watching jumps
+        // to the front of the queue.
         let ctx = ctx.clone();
         let videos: Vec<String> = media
             .iter()
             .filter(|e| util::mime_for(&e.name).1 == util::Kind::Video)
             .map(|e| e.rel.clone())
             .collect();
-        std::thread::spawn(move || {
-            for rel in videos {
-                let Some((full, _)) = util::safe_join(&ctx.root, &rel) else { continue };
-                if tc.needs_transcode(&full) {
-                    tc.enqueue(full, ctx.sibling_subs(&rel), false);
-                }
-            }
-        });
+        std::thread::spawn(move || prepare_all(&ctx, tc, &videos));
     }
 
     println!("============================================================");
@@ -212,11 +259,15 @@ fn main() {
     match tc {
         Some(t) => {
             println!(" Transcoding: on ({}, encoder {}).", t.ffmpeg_path().display(), t.encoder());
-            println!("   HEVC/x265, 10-bit, VP9 and AV1 videos are converted to H.264 MP4");
-            println!("   in the background, one at a time, into:");
+            println!("   At startup every video is checked and converted in the background,");
+            println!("   one at a time, without waiting for a TV to ask:");
+            if args.sub_lang.is_some() {
+                println!("   - a copy with the --sub-lang subtitles burned in (Samsung), first");
+            }
+            println!("   - an H.264 copy of HEVC/x265, 10-bit, VP9 and AV1 videos (TV VLC)");
+            println!("   Converted copies are kept in the folder below and reused next time:");
             println!("   {}", t.cache_dir().display().to_string().trim_start_matches(r"\\?\"));
-            println!("   Once converted they can be seeked. Before that they still play,");
-            println!("   streamed live, but without seeking.");
+            println!("   Videos still play before they are converted.");
         }
         None if args.transcode => {
             println!(" Transcoding: off (ffmpeg.exe + ffprobe.exe not found next to");
