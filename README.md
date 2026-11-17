@@ -126,15 +126,31 @@ black screen. RustMedia can convert those videos to H.264 while streaming:
    `rustmedia.exe` (or have them on PATH).
 3. Start `rustmedia.exe`. It prints `Transcoding: on`.
 
-RustMedia checks each video with ffprobe. Files that are already 8-bit
-H.264 are sent as-is. The others are **converted in the background**, one
-at a time, into a new MP4 in `.rustmedia-cache` inside the shared folder
-(or the temp folder if that one is read-only). The console shows progress:
+**At startup** RustMedia scans the whole folder and converts every video
+that still needs it in the background, without waiting for a TV to ask.
+The server is usable right away while this runs. Conversions go one at a
+time into `.rustmedia-cache` inside the shared folder (or the temp folder if
+that one is read-only), in this order:
+
+1. With `--sub-lang ms`: a copy of each video that has a `Movie.ms.srt`,
+   with those subtitles burned into the picture (for Samsung TVs).
+2. An H.264 copy of each video the TV can't decode (checked with ffprobe;
+   files that are already 8-bit H.264 are sent as-is).
+
+Copies already in the cache are skipped, so the next start only converts
+new or changed videos. The console shows a summary and the progress:
 
 ```
- Converting for TV: Movie.mkv
+ Startup scan done (12 videos):
+   Samsung (subtitles burned in): 9 ready, 2 to convert, 1 without a .ms.srt
+     no subtitle: Extras/Trailer.mkv
+   TV (HEVC -> H.264 copy)      : 10 ready, 2 to convert
+   Converting in the background, one at a time. Videos can be played meanwhile.
+
+ Burning subtitles into Movie.mkv for Samsung (re-encodes the video, takes a while) [3 more waiting]
  Converting Movie.mkv: 30%
- Ready for TV (seekable): Movie.mkv (24.5 min)
+ Ready for Samsung (subtitles burned in): Movie.mkv (24.5 min)
+ Converting for TV: Other.mkv [2 more waiting]
 ```
 
 - Once a video is converted it plays from the MP4 and **seeking works**.
