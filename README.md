@@ -1,17 +1,17 @@
-# RustMedia
+# LayarAku
 
 A small media server for Windows, written entirely in Rust. Run
-`rustmedia.exe` inside your video folder and VLC on your laptop, phone or TV
+`layaraku.exe` inside your video folder and VLC on your laptop, phone or TV
 (on the same Wi-Fi) can browse and play the videos in that folder.
 
 ## Usage
 
-1. Copy `rustmedia.exe` into your video folder (e.g. `D:\Movies`) and
+1. Copy `layaraku.exe` into your video folder (e.g. `D:\Movies`) and
    double-click it, or from a terminal:
 
    ```
    cd D:\Movies
-   rustmedia.exe
+   layaraku.exe
    ```
 
 2. The first time, Windows Firewall will ask for permission. Choose
@@ -30,7 +30,7 @@ A small media server for Windows, written entirely in Rust. Run
      `http://<ip>:8080/playlist.m3u`. Every video (including subfolders)
      appears in the playlist; pick one and play. Seeking works.
    - **Option B (no typing, best for TVs):** open *Local Network* /
-     *Universal Plug'n'Play* (UPnP) and choose **RustMedia - <folder> (<PC>)**.
+     *Universal Plug'n'Play* (UPnP) and choose **LayarAku - <folder> (<PC>)**.
      You can browse folders and pick a video directly.
 
 The file list can also be opened in a web browser at `http://<ip>:8080/`.
@@ -56,7 +56,7 @@ Movie.srt        (or Movie.en.srt, Movie.ms.srt; .srt, .vtt, .ass and .ssa work)
 
 ## What each player gets
 
-RustMedia recognises the player and sends the version that suits it:
+LayarAku recognises the player and sends the version that suits it:
 
 | Player | Gets |
 |---|---|
@@ -67,7 +67,7 @@ RustMedia recognises the player and sends the version that suits it:
 Players are told apart by what they report over UPnP (Samsung, Windows/macOS,
 or Linux/Android), and the result is remembered per device, so the
 console shows a line such as `Client 192.168.1.20: Samsung TV ...` the
-first time each one connects. VLC on the laptop running RustMedia counts
+first time each one connects. VLC on the laptop running LayarAku counts
 as a PC. Using the playlist link from a Mac or another PC, add
 `?for=pc` (or `?for=tv`) to choose the version yourself:
 
@@ -79,20 +79,20 @@ http://192.168.1.4:8080/playlist.m3u?for=pc
 
 Samsung Tizen TVs and Smart Monitors (e.g. M7) have a built-in DLNA player:
 
-1. Start `rustmedia.exe` on the laptop (same Wi-Fi as the monitor).
+1. Start `layaraku.exe` on the laptop (same Wi-Fi as the monitor).
 2. On the monitor: **Source** (or Home > **Connected Devices**), choose
-   **RustMedia - <folder> (<PC>)**, browse to the video and play it.
+   **LayarAku - <folder> (<PC>)**, browse to the video and play it.
 
 Samsung players decode HEVC, MKV and 10-bit video themselves, so they get
 the original files (no conversion, seeking works).
 
 Samsung players ignore `.srt` files next to the video, and on the
 Smart Monitor M7 they also show nothing for subtitle tracks added to a
-file. So with `--sub-lang`, RustMedia (with ffmpeg available) makes a copy
+file. So with `--sub-lang`, LayarAku (with ffmpeg available) makes a copy
 of the video with that language's subtitles **burned into the picture**:
 
 ```
-rustmedia.exe --sub-lang ms      # burns Movie.ms.srt into Movie.mkv for Samsung
+layaraku.exe --sub-lang ms      # burns Movie.ms.srt into Movie.mkv for Samsung
 ```
 
 The video is re-encoded to H.264, so this takes a while (roughly the
@@ -100,7 +100,7 @@ length of the film or less, depending on the laptop; `--encoder
 h264_nvenc` / `h264_qsv` / `h264_amf` is much faster on a GPU). It starts
 the first time the monitor opens the folder; meanwhile the video's name
 ends with "(ms subtitles: burning in N%, open again later)" and the
-original plays. The copies are kept in `.rustmedia-cache`. Burned-in
+original plays. The copies are kept in `.layaraku-cache`. Burned-in
 subtitles can't be switched off on the monitor. Once the copy exists,
 the monitor always gets it, even if it replays an older link (for example
 after switching input to the PC and back).
@@ -118,18 +118,22 @@ subtitle copies for Samsung.
 ## Transcoding (HEVC / x265 videos on TVs)
 
 Many TVs can't decode HEVC (x265), 10-bit, VP9 or AV1 video, so VLC shows a
-black screen. RustMedia can convert those videos to H.264 while streaming:
+black screen. LayarAku can convert those videos to H.264 while streaming:
 
 1. Download ffmpeg for Windows, e.g. the "release essentials" zip from
    https://www.gyan.dev/ffmpeg/builds/ (or `winget install Gyan.FFmpeg`).
 2. Copy `ffmpeg.exe` and `ffprobe.exe` from its `bin` folder next to
-   `rustmedia.exe` (or have them on PATH).
-3. Start `rustmedia.exe`. It prints `Transcoding: on`.
+   `layaraku.exe` (or have them on PATH).
+3. Start `layaraku.exe`. It prints `Transcoding: on`.
 
-**At startup** RustMedia scans the whole folder and converts every video
+**Upgrading from RustMedia:** the old `.rustmedia-cache` folder is moved to
+`.layaraku-cache` automatically on first start, so no converted video is lost
+or converted again. You can delete the old `rustmedia.exe`.
+
+**At startup** LayarAku scans the whole folder and converts every video
 that still needs it in the background, without waiting for a TV to ask.
 The server is usable right away while this runs. Conversions go one at a
-time into `.rustmedia-cache` inside the shared folder (or the temp folder if
+time into `.layaraku-cache` inside the shared folder (or the temp folder if
 that one is read-only), in this order:
 
 1. With `--sub-lang ms`: a copy of each video that has a `Movie.ms.srt`,
@@ -173,7 +177,7 @@ new or changed videos. The console shows a summary and the progress:
   older versions (`My Movie.0123456789abcdef.mp4`) are renamed to the new
   pattern automatically when found, never converted again.
 - Converted files are reused on the next start. They are made again if the
-  video or its subtitle files change. You can delete `.rustmedia-cache` at
+  video or its subtitle files change. You can delete `.layaraku-cache` at
   any time to free space (a 2-hour 1080p film takes roughly 2-4 GB).
 - Converting uses the CPU (at low priority). To make it faster, try a GPU
   encoder: `--encoder h264_nvenc` (NVIDIA), `h264_qsv` (Intel) or
@@ -184,7 +188,7 @@ In the playlist and file list, these videos are marked `[TV]`.
 ## Options
 
 ```
-rustmedia.exe [FOLDER] [--port N] [--name NAME] [--no-dlna] [--no-transcode] [--encoder NAME] [--sub-lang TAG]
+layaraku.exe [FOLDER] [--port N] [--name NAME] [--no-dlna] [--no-transcode] [--encoder NAME] [--sub-lang TAG]
 ```
 
 | Option | Meaning |
@@ -214,7 +218,7 @@ rustmedia.exe [FOLDER] [--port N] [--name NAME] [--no-dlna] [--no-transcode] [--
 On Windows, run the build script (needs Rust from https://rustup.rs):
 
 ```
-.\build.ps1                  # run tests, build, copy rustmedia.exe here
+.\build.ps1                  # run tests, build, copy layaraku.exe here
 .\build.ps1 -SkipTests       # build only
 .\build.ps1 -Output D:\Movies # also copy the exe into your video folder
 .\build.ps1 -Gnu             # force the GNU toolchain (picked automatically without Visual Studio)

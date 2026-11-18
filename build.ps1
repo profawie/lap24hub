@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Build rustmedia.exe (release) and copy it to the project folder.
+    Build layaraku.exe (release) and copy it to the project folder.
 
 .EXAMPLE
     .\build.ps1                     # test + release build
@@ -90,14 +90,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 4. Copy the exe
-$exe = "target\release\rustmedia.exe"
+$exe = "target\release\layaraku.exe"
 if (-not (Test-Path $exe)) { Fail "$exe not found after build" }
-Copy-Item $exe -Destination (Join-Path $PSScriptRoot "rustmedia.exe") -Force
+Copy-Item $exe -Destination (Join-Path $PSScriptRoot "layaraku.exe") -Force
 if ($Output -ne "") {
     if (-not (Test-Path $Output -PathType Container)) { Fail "output folder '$Output' does not exist" }
-    Copy-Item $exe -Destination (Join-Path $Output "rustmedia.exe") -Force
+    Copy-Item $exe -Destination (Join-Path $Output "layaraku.exe") -Force
 }
 
 $size = [math]::Round((Get-Item $exe).Length / 1MB, 2)
-Write-Host "`nDone: rustmedia.exe ($size MB)" -ForegroundColor Green
+Write-Host "`nDone: layaraku.exe ($size MB)" -ForegroundColor Green
 if ($Output -ne "") { Write-Host "Also copied to: $Output" -ForegroundColor Green }
