@@ -160,6 +160,18 @@ new or changed videos. The console shows a summary and the progress:
 - The MP4 has H.264 video (max 1080p), all audio tracks as AAC stereo, and
   the subtitles as tracks: text subtitles embedded in the file plus
   `Movie.srt`, `Movie.ms.srt`, ... (named Malay, English, ...).
+- Cache files are named `[platform][encode]Video name ~code.ext`, so you
+  can tell at a glance which video each one is:
+  - `[samsung][h264-burnsub-ms]My Movie ~1a2b3c4d.mp4`: Samsung copy with
+    the `ms` subtitles burned in,
+  - `[tv][h264-subs]My Movie ~5e6f7a8b.mp4`: H.264 TV copy with subtitle
+    tracks (`[tv][h264]` when the video has no subtitle files),
+  - `[samsung][mkv-subs]My Movie ~9c0d1e2f.mkv`: copy with subtitle tracks
+    added for Samsung.
+
+  The `~code` changes when the video or its subtitles change. Copies made by
+  older versions (`My Movie.0123456789abcdef.mp4`) are renamed to the new
+  pattern automatically when found, never converted again.
 - Converted files are reused on the next start. They are made again if the
   video or its subtitle files change. You can delete `.rustmedia-cache` at
   any time to free space (a 2-hour 1080p film takes roughly 2-4 GB).
