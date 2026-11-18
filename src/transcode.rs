@@ -270,13 +270,19 @@ impl Transcoder {
 
     // ------------------------------------------------------------ cache
 
-    /// Cache file for a source + its subtitles. The name changes whenever
-    /// any of them is modified, so stale conversions are never served.
+    /// Cache file for a source + its subtitles, e.g.
+    /// `[tv][h264]My Movie ~1a2b3c4d.mp4`. The short code after `~` changes
+    /// whenever the video or a subtitle file is modified, so stale
+    /// conversions are never served.
     fn cache_file(&self, src: &Path, subs: &[PathBuf]) -> PathBuf {
-        self.cache_name(src, subs, &self.encoder, "mp4")
+        let label = if subs.is_empty() { "h264" } else { "h264-subs" };
+        self.cache_name(src, subs, &self.encoder, "tv", label, "mp4")
     }
 
-    fn cache_name(&self, src: &Path, subs: &[PathBuf], kind: &str, ext: &str) -> PathBuf {
+    /// `kind` feeds the hash (unchanged from older versions, so their cache
+    /// files can be found and renamed); `platform` and `label` only make the
+    /// name readable.
+    fn cache_name(&self, src: &Path, subs: &[PathBuf], kind: &str, platform: &str, label: &str, ext: &str) -> PathBuf {
         let mut h = DefaultHasher::new();
         for p in std::iter::once(src).chain(subs.iter().map(PathBuf::as_path)) {
             p.hash(&mut h);
@@ -286,8 +292,18 @@ impl Transcoder {
             }
         }
         kind.hash(&mut h);
+        let hash = h.finish();
         let stem = src.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        self.cache_dir.join(format!("{stem}.{:016x}.{ext}", h.finish()))
+        let file = self.cache_dir.join(cache_file_name(platform, label, &stem, hash, ext));
+        if !file.is_file() {
+            // Copies made by older versions were named `{stem}.{hash}.{ext}`:
+            // rename them so finished conversions are kept, not redone.
+            let legacy = self.cache_dir.join(format!("{stem}.{hash:016x}.{ext}"));
+            if legacy.is_file() && std::fs::rename(&legacy, &file).is_ok() {
+                println!(" Renamed cache file: {}", file.file_name().unwrap_or_default().to_string_lossy());
+            }
+        }
+        file
     }
 
     pub fn state(&self, src: &Path, subs: &[PathBuf]) -> CacheState {
@@ -319,7 +335,9 @@ impl Transcoder {
     /// Copy of `src` with `sub` burned into the picture, for players that
     /// show no subtitle tracks we add (Samsung).
     fn burn_file(&self, src: &Path, sub: &Path) -> PathBuf {
-        self.cache_name(src, &[sub.to_path_buf()], &format!("burn1-{}", self.encoder), "mp4")
+        let tag = sub_tag(src, sub).to_lowercase();
+        let label = if tag.is_empty() { "h264-burnsub".to_string() } else { format!("h264-burnsub-{tag}") };
+        self.cache_name(src, &[sub.to_path_buf()], &format!("burn1-{}", self.encoder), "samsung", &label, "mp4")
     }
 
     /// State of the burned-in copy; queues it (first in line) if missing.
@@ -407,8 +425,10 @@ impl Transcoder {
         // cache folder under a plain name and run ffmpeg there instead.
         let burn_copy = job.burn.as_ref().map(|sub| {
             let ext = sub.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_else(|| "srt".into());
+            // Only the short code from the cache name: brackets and spaces
+            // would break ffmpeg's filter syntax.
             let stem = target.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-            let hash = stem.rsplit('.').next().unwrap_or("sub").to_string();
+            let hash: String = stem.rsplit('~').next().unwrap_or("sub").chars().filter(char::is_ascii_alphanumeric).collect();
             (sub.clone(), format!("burn-{hash}.{ext}"))
         });
         if let Some((sub, file)) = &burn_copy {
@@ -498,7 +518,7 @@ impl Transcoder {
     /// Copy of `src` with the external subtitle files added as MKV tracks.
     /// Samsung TVs only list subtitles inside the file, never a sibling .srt.
     fn mux_file(&self, src: &Path, subs: &[PathBuf]) -> PathBuf {
-        self.cache_name(src, subs, "mux2", "mkv")
+        self.cache_name(src, subs, "mux2", "samsung", "mkv-subs", "mkv")
     }
 
     /// The muxed copy, if it has been made.
@@ -604,6 +624,11 @@ fn bump_update_id() {
 
 pub const TC_FEATURES: &str = "DLNA.ORG_OP=00;DLNA.ORG_CI=1;DLNA.ORG_FLAGS=01700000000000000000000000000000";
 
+/// Readable cache file name: `[platform][encode]Movie ~1a2b3c4d.ext`.
+fn cache_file_name(platform: &str, label: &str, stem: &str, hash: u64, ext: &str) -> String {
+    format!("[{platform}][{label}]{stem} ~{:08x}.{ext}", hash as u32 ^ (hash >> 32) as u32)
+}
+
 /// The part of a subtitle name between the video's stem and the extension:
 /// `Movie.mkv` + `Movie.ms.srt` -> "ms".
 fn sub_tag(video: &Path, sub: &Path) -> String {
@@ -696,6 +721,11 @@ mod tests {
         assert_eq!(sub_tag(v, Path::new("Movie Name.srt")), "");
         assert_eq!(iso639_2("ms"), Some(("may", "Malay")));
         assert_eq!(iso639_2("forced"), None);
+    }
+
+    #[test]
+    fn cache_names() {
+        assert_eq!(cache_file_name("samsung", "h264-burnsub-ms", "My Movie", 0x1111_2222_3333_4444, "mp4"), "[samsung][h264-burnsub-ms]My Movie ~22226666.mp4");
     }
 
     #[test]
