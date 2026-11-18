@@ -76,7 +76,7 @@ impl Ctx {
             (_, Some(Profile::Samsung)) => Profile::Samsung,
             (Some(d), _) => d,
             (None, Some(k)) => k,
-            // Same machine as RustMedia: VLC on this PC.
+            // Same machine as LayarAku: VLC on this PC.
             (None, None) if peer.is_loopback() || peer == local => Profile::Pc,
             (None, None) => Profile::Tv,
         };
@@ -301,7 +301,7 @@ pub fn respond(
     body: &[u8],
     head_only: bool,
 ) -> io::Result<()> {
-    let mut out = format!("HTTP/1.1 {status}\r\nServer: RustMedia/{}\r\nConnection: close\r\nContent-Length: {}\r\n", env!("CARGO_PKG_VERSION"), body.len());
+    let mut out = format!("HTTP/1.1 {status}\r\nServer: LayarAku/{}\r\nConnection: close\r\nContent-Length: {}\r\n", env!("CARGO_PKG_VERSION"), body.len());
     for (k, v) in headers {
         out.push_str(&format!("{k}: {v}\r\n"));
     }
@@ -528,7 +528,7 @@ fn serve_file(stream: &mut TcpStream, req: &Request, path: &Path, len: u64, head
     let count = if len == 0 { 0 } else { end - start + 1 };
 
     let mut h = format!(
-        "HTTP/1.1 {status}\r\nServer: RustMedia/{}\r\nConnection: close\r\nContent-Type: {mime}\r\nContent-Length: {count}\r\nAccept-Ranges: bytes\r\n\
+        "HTTP/1.1 {status}\r\nServer: LayarAku/{}\r\nConnection: close\r\nContent-Type: {mime}\r\nContent-Length: {count}\r\nAccept-Ranges: bytes\r\n\
          transferMode.dlna.org: Streaming\r\ncontentFeatures.dlna.org: {}\r\n",
         env!("CARGO_PKG_VERSION"),
         dlna::CONTENT_FEATURES
@@ -689,13 +689,13 @@ fn listing(ctx: &Ctx, dir: &Path, rel: &str, base: &str) -> String {
     }
     format!(
         r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RustMedia {t}</title><style>
+<title>LayarAku {t}</title><style>
 body{{font-family:system-ui,sans-serif;margin:0 auto;max-width:900px;padding:16px;background:#111;color:#eee}}
 a{{color:#8cf;text-decoration:none}} li{{padding:6px 0;border-bottom:1px solid #333;list-style:none;word-break:break-all}}
 ul{{padding:0}} small{{color:#999}} .d a{{color:#fc6;font-weight:600}} .m a{{color:#9f9}}
 .u{{display:block;color:#777;font-size:12px;font-family:monospace}}
 .box{{background:#222;padding:12px;border-radius:8px;font-size:14px}} code{{color:#9f9;word-break:break-all}}
-</style></head><body><h2>RustMedia {t}</h2>
+</style></head><body><h2>LayarAku {t}</h2>
 <div class=box>VLC &rarr; Media &rarr; Open Network Stream, paste this URL to play this folder as a playlist:<br><code>{pl}</code><br>
 <a href="{pl_href}">Download playlist.m3u</a></div>
 <ul>

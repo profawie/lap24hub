@@ -33,6 +33,8 @@ impl Device {
     pub fn new(name: String, seed: &str) -> Self {
         use std::hash::{DefaultHasher, Hash, Hasher};
         let mut h1 = DefaultHasher::new();
+        // Old name kept on purpose: the UUID stays the same after the rename,
+        // so the TV keeps its existing entry instead of listing a new one.
         ("rustmedia-a", seed).hash(&mut h1);
         let mut h2 = DefaultHasher::new();
         ("rustmedia-b", seed).hash(&mut h2);
@@ -69,7 +71,7 @@ impl Device {
 }
 
 fn server_header() -> String {
-    format!("Windows/10 UPnP/1.0 RustMedia/{}", env!("CARGO_PKG_VERSION"))
+    format!("Windows/10 UPnP/1.0 LayarAku/{}", env!("CARGO_PKG_VERSION"))
 }
 
 // ---------------------------------------------------------------- SSDP
@@ -210,7 +212,7 @@ fn description(dev: &Device) -> String {
 <root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:dlna="urn:schemas-dlna-org:device-1-0" xmlns:sec="http://www.sec.co.kr/dlna">
 <specVersion><major>1</major><minor>0</minor></specVersion>
 <device><deviceType>{DEVICE_TYPE}</deviceType><friendlyName>{name}</friendlyName>
-<manufacturer>RustMedia</manufacturer><modelName>RustMedia Server</modelName><modelNumber>{ver}</modelNumber>
+<manufacturer>LayarAku</manufacturer><modelName>LayarAku Server</modelName><modelNumber>{ver}</modelNumber>
 <dlna:X_DLNADOC>DMS-1.50</dlna:X_DLNADOC><UDN>uuid:{uuid}</UDN>
 <sec:ProductCap>smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec</sec:ProductCap>
 <sec:X_ProductCap>smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec</sec:X_ProductCap>
@@ -350,7 +352,7 @@ fn item_xml(ctx: &Ctx, rel: &str, name: &str, size: u64, subs: &[String], base: 
     let mut size = size;
     let mut title = title;
     // With --sub-lang, Samsung gets that subtitle burned into the picture:
-    // its player draws no subtitle track that RustMedia adds to a file.
+    // its player draws no subtitle track that LayarAku adds to a file.
     let burn = if native && kind == Kind::Video { ctx.samsung_burn(rel) } else { None };
     let mut burned = None;
     match &burn {
@@ -436,7 +438,7 @@ fn browse(ctx: &Ctx, id: &str, metadata: bool, start: usize, count: usize, base:
     if metadata {
         let name = rel.rsplit('/').next().unwrap_or("").to_string();
         if meta.is_dir() {
-            let title = if rel.is_empty() { "RustMedia".to_string() } else { name };
+            let title = if rel.is_empty() { "LayarAku".to_string() } else { name };
             didl.push_str(&container_xml(ctx, &rel, &title));
         } else {
             let parent = rel.rsplit_once('/').map(|(p, _)| p).unwrap_or("");

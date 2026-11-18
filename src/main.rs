@@ -1,4 +1,4 @@
-//! RustMedia: share the current folder over the LAN so VLC (PC, phone, TV)
+//! LayarAku: share the current folder over the LAN so VLC (PC, phone, TV)
 //! can play the videos. HTTP + M3U playlist + Range seeking + DLNA/UPnP.
 
 mod dlna;
@@ -11,9 +11,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 const HELP: &str = "\
-RustMedia - share a video folder with VLC over the local network (LAN)
+LayarAku - share a video folder with VLC over the local network (LAN)
 
-Usage: rustmedia.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
+Usage: layaraku.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
                      [--no-transcode] [--encoder NAME] [--sub-lang TAG]
 
   FOLDER       Folder to share (default: current directory)
@@ -27,7 +27,7 @@ Usage: rustmedia.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
   --encoder NAME  ffmpeg H.264 encoder (default: libx264; GPU options:
                   h264_nvenc, h264_qsv, h264_amf)
 
-Transcoding: put ffmpeg.exe and ffprobe.exe next to rustmedia.exe (or on
+Transcoding: put ffmpeg.exe and ffprobe.exe next to layaraku.exe (or on
 PATH). Videos a TV can't decode (HEVC/x265, 10-bit, VP9, AV1) are then
 converted to H.264 while streaming. Other files are sent as-is.
   -h, --help   Show this help
@@ -68,10 +68,11 @@ fn parse_args() -> Result<Args, String> {
     Ok(a)
 }
 
-/// Folder for converted videos: `.rustmedia-cache` inside the shared folder
+/// Folder for converted videos: `.layaraku-cache` inside the shared folder
 /// (hidden from listings), or the temp folder if that isn't writable.
+/// A cache from before the rename (`.rustmedia-cache`) is moved into it,
+/// never deleted; if it can't be renamed it is used as it is.
 fn cache_dir(root: &std::path::Path) -> PathBuf {
-    let preferred = root.join(".rustmedia-cache");
     let writable = |d: &std::path::Path| {
         std::fs::create_dir_all(d).is_ok() && {
             let probe = d.join(".write-test");
@@ -80,12 +81,51 @@ fn cache_dir(root: &std::path::Path) -> PathBuf {
             ok
         }
     };
+    let preferred = migrate_cache(root.join(".rustmedia-cache"), root.join(".layaraku-cache"));
     if writable(&preferred) {
         return preferred;
     }
-    let fallback = std::env::temp_dir().join("rustmedia-cache");
+    let tmp = std::env::temp_dir();
+    let fallback = migrate_cache(tmp.join("rustmedia-cache"), tmp.join("layaraku-cache"));
     let _ = std::fs::create_dir_all(&fallback);
     fallback
+}
+
+/// Pick the cache folder to use: `new`, after moving the old cache (`old`)
+/// into it. Nothing is deleted: if a move fails, the old folder (or file)
+/// stays where it was and is used as it is.
+fn migrate_cache(old: PathBuf, new: PathBuf) -> PathBuf {
+    if !old.is_dir() {
+        return new;
+    }
+    if !new.exists() {
+        return match std::fs::rename(&old, &new) {
+            Ok(()) => {
+                println!(" Cache folder renamed: {} -> {}", old.display(), new.display());
+                new
+            }
+            Err(e) => {
+                println!(" Could not rename {} ({e}); using it as it is.", old.display());
+                old
+            }
+        };
+    }
+    // Both exist: move over each old entry the new folder doesn't have yet.
+    let mut left = 0;
+    if let Ok(entries) = std::fs::read_dir(&old) {
+        for e in entries.flatten() {
+            let to = new.join(e.file_name());
+            if to.exists() || std::fs::rename(e.path(), &to).is_err() {
+                left += 1;
+            }
+        }
+    }
+    if left == 0 {
+        let _ = std::fs::remove_dir(&old); // only succeeds when empty
+    } else {
+        println!(" {left} file(s) left in {} (not moved).", old.display());
+    }
+    new
 }
 
 /// Startup scan: queue every missing converted copy and report the totals.
@@ -188,7 +228,7 @@ fn main() {
         .unwrap_or_else(|| shown_root.clone());
 
     let device = if args.dlna {
-        let name = args.name.clone().unwrap_or_else(|| format!("RustMedia - {folder_name} ({host})"));
+        let name = args.name.clone().unwrap_or_else(|| format!("LayarAku - {folder_name} ({host})"));
         let dev: &'static dlna::Device = Box::leak(Box::new(dlna::Device::new(name, &format!("{host}|{shown_root}"))));
         Some(dev)
     } else {
@@ -225,7 +265,7 @@ fn main() {
     }
 
     println!("============================================================");
-    println!(" RustMedia {}  -  media server for VLC", env!("CARGO_PKG_VERSION"));
+    println!(" LayarAku {}  -  media server for VLC", env!("CARGO_PKG_VERSION"));
     println!("============================================================");
     println!(" Folder   : {shown_root}");
     println!(
@@ -271,7 +311,7 @@ fn main() {
         }
         None if args.transcode => {
             println!(" Transcoding: off (ffmpeg.exe + ffprobe.exe not found next to");
-            println!("   rustmedia.exe or on PATH). HEVC videos may not play on TVs.");
+            println!("   layaraku.exe or on PATH). HEVC videos may not play on TVs.");
         }
         None => println!(" Transcoding: off (--no-transcode)."),
     }
@@ -285,4 +325,37 @@ fn main() {
     println!("============================================================");
 
     http::run(ctx, listener);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::migrate_cache;
+
+    #[test]
+    fn old_cache_is_moved_not_deleted() {
+        let base = std::env::temp_dir().join(format!("layaraku-mig-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let (old, new) = (base.join(".rustmedia-cache"), base.join(".layaraku-cache"));
+
+        // Only the old folder: it is renamed.
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("a.mp4"), b"a").unwrap();
+        assert_eq!(migrate_cache(old.clone(), new.clone()), new);
+        assert!(!old.exists());
+        assert_eq!(std::fs::read(new.join("a.mp4")).unwrap(), b"a");
+
+        // Both exist: old files are moved in, existing new files win.
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("a.mp4"), b"old").unwrap();
+        std::fs::write(old.join("b.mp4"), b"b").unwrap();
+        assert_eq!(migrate_cache(old.clone(), new.clone()), new);
+        assert_eq!(std::fs::read(new.join("a.mp4")).unwrap(), b"a");
+        assert_eq!(std::fs::read(new.join("b.mp4")).unwrap(), b"b");
+        assert_eq!(std::fs::read(old.join("a.mp4")).unwrap(), b"old");
+
+        // No old folder: the new path is used.
+        let _ = std::fs::remove_dir_all(&base);
+        assert_eq!(migrate_cache(old.clone(), new.clone()), new);
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
