@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Build lap24.hub.exe (release) and copy it to the project folder.
+    Build lap24hub.exe (release) and copy it to the project folder.
 
 .EXAMPLE
     .\build.ps1                     # test + release build
@@ -90,14 +90,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 4. Copy the exe
-$exe = "target\release\lap24hub.exe"   # Cargo names it without the dot
+$exe = "target\release\lap24hub.exe"
 if (-not (Test-Path $exe)) { Fail "$exe not found after build" }
-Copy-Item $exe -Destination (Join-Path $PSScriptRoot "lap24.hub.exe") -Force
+Copy-Item $exe -Destination (Join-Path $PSScriptRoot "lap24hub.exe") -Force
 if ($Output -ne "") {
     if (-not (Test-Path $Output -PathType Container)) { Fail "output folder '$Output' does not exist" }
-    Copy-Item $exe -Destination (Join-Path $Output "lap24.hub.exe") -Force
+    Copy-Item $exe -Destination (Join-Path $Output "lap24hub.exe") -Force
 }
 
 $size = [math]::Round((Get-Item $exe).Length / 1MB, 2)
-Write-Host "`nDone: lap24.hub.exe ($size MB)" -ForegroundColor Green
+Write-Host "`nDone: lap24hub.exe ($size MB)" -ForegroundColor Green
 if ($Output -ne "") { Write-Host "Also copied to: $Output" -ForegroundColor Green }

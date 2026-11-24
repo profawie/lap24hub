@@ -1,17 +1,17 @@
-# lap24.hub
+# lap24hub
 
 A small media server for Windows, written entirely in Rust. Run
-`lap24.hub.exe` inside your video folder and VLC on your laptop, phone or TV
+`lap24hub.exe` inside your video folder and VLC on your laptop, phone or TV
 (on the same Wi-Fi) can browse and play the videos in that folder.
 
 ## Usage
 
-1. Copy `lap24.hub.exe` into your video folder (e.g. `D:\Movies`) and
+1. Copy `lap24hub.exe` into your video folder (e.g. `D:\Movies`) and
    double-click it, or from a terminal:
 
    ```
    cd D:\Movies
-   lap24.hub.exe
+   lap24hub.exe
    ```
 
 2. The first time, Windows Firewall will ask for permission. Choose
@@ -30,7 +30,7 @@ A small media server for Windows, written entirely in Rust. Run
      `http://<ip>:8080/playlist.m3u`. Every video (including subfolders)
      appears in the playlist; pick one and play. Seeking works.
    - **Option B (no typing, best for TVs):** open *Local Network* /
-     *Universal Plug'n'Play* (UPnP) and choose **lap24.hub - <folder> (<PC>)**.
+     *Universal Plug'n'Play* (UPnP) and choose **lap24hub - <folder> (<PC>)**.
      You can browse folders and pick a video directly.
 
 The file list can also be opened in a web browser at `http://<ip>:8080/`.
@@ -56,7 +56,7 @@ Movie.srt        (or Movie.en.srt, Movie.ms.srt; .srt, .vtt, .ass and .ssa work)
 
 ## What each player gets
 
-lap24.hub recognises the player and sends the version that suits it:
+lap24hub recognises the player and sends the version that suits it:
 
 | Player | Gets |
 |---|---|
@@ -67,7 +67,7 @@ lap24.hub recognises the player and sends the version that suits it:
 Players are told apart by what they report over UPnP (Samsung, Windows/macOS,
 or Linux/Android), and the result is remembered per device, so the
 console shows a line such as `Client 192.168.1.20: Samsung TV ...` the
-first time each one connects. VLC on the laptop running lap24.hub counts
+first time each one connects. VLC on the laptop running lap24hub counts
 as a PC. Using the playlist link from a Mac or another PC, add
 `?for=pc` (or `?for=tv`) to choose the version yourself:
 
@@ -79,20 +79,20 @@ http://192.168.1.4:8080/playlist.m3u?for=pc
 
 Samsung Tizen TVs and Smart Monitors (e.g. M7) have a built-in DLNA player:
 
-1. Start `lap24.hub.exe` on the laptop (same Wi-Fi as the monitor).
+1. Start `lap24hub.exe` on the laptop (same Wi-Fi as the monitor).
 2. On the monitor: **Source** (or Home > **Connected Devices**), choose
-   **lap24.hub - <folder> (<PC>)**, browse to the video and play it.
+   **lap24hub - <folder> (<PC>)**, browse to the video and play it.
 
 Samsung players decode HEVC, MKV and 10-bit video themselves, so they get
 the original files (no conversion, seeking works).
 
 Samsung players ignore `.srt` files next to the video, and on the
 Smart Monitor M7 they also show nothing for subtitle tracks added to a
-file. So with `--sub-lang`, lap24.hub (with ffmpeg available) makes a copy
+file. So with `--sub-lang`, lap24hub (with ffmpeg available) makes a copy
 of the video with that language's subtitles **burned into the picture**:
 
 ```
-lap24.hub.exe --sub-lang ms      # burns Movie.ms.srt into Movie.mkv for Samsung
+lap24hub.exe --sub-lang ms      # burns Movie.ms.srt into Movie.mkv for Samsung
 ```
 
 The video is re-encoded to H.264, so this takes a while (roughly the
@@ -118,21 +118,21 @@ subtitle copies for Samsung.
 ## Transcoding (HEVC / x265 videos on TVs)
 
 Many TVs can't decode HEVC (x265), 10-bit, VP9 or AV1 video, so VLC shows a
-black screen. lap24.hub can convert those videos to H.264 while streaming:
+black screen. lap24hub can convert those videos to H.264 while streaming:
 
 1. Download ffmpeg for Windows, e.g. the "release essentials" zip from
    https://www.gyan.dev/ffmpeg/builds/ (or `winget install Gyan.FFmpeg`).
 2. Copy `ffmpeg.exe` and `ffprobe.exe` from its `bin` folder next to
-   `lap24.hub.exe` (or have them on PATH).
-3. Start `lap24.hub.exe`. It prints `Transcoding: on`.
+   `lap24hub.exe` (or have them on PATH).
+3. Start `lap24hub.exe`. It prints `Transcoding: on`.
 
 **Upgrading from LayarAku or RustMedia:** the old `.layaraku-cache` and
 `.rustmedia-cache` folders are moved to `.lap24hub-cache` automatically on
 first start, so no converted video is lost or converted again. The TV keeps
-its existing entry (now named **lap24.hub - <folder> (<PC>)**). You can delete
+its existing entry (now named **lap24hub - <folder> (<PC>)**). You can delete
 the old `layaraku.exe` / `rustmedia.exe`.
 
-**At startup** lap24.hub scans the whole folder and converts every video
+**At startup** lap24hub scans the whole folder and converts every video
 that still needs it in the background, without waiting for a TV to ask.
 The server is usable right away while this runs. Conversions go one at a
 time into `.lap24hub-cache` inside the shared folder (or the temp folder if
@@ -190,7 +190,7 @@ In the playlist and file list, these videos are marked `[TV]`.
 ## Options
 
 ```
-lap24.hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna] [--no-transcode] [--encoder NAME] [--sub-lang TAG]
+lap24hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna] [--no-transcode] [--encoder NAME] [--sub-lang TAG]
 ```
 
 | Option | Meaning |
@@ -220,7 +220,7 @@ lap24.hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna] [--no-transcode] [--
 On Windows, run the build script (needs Rust from https://rustup.rs):
 
 ```
-.\build.ps1                  # run tests, build, copy lap24.hub.exe here
+.\build.ps1                  # run tests, build, copy lap24hub.exe here
 .\build.ps1 -SkipTests       # build only
 .\build.ps1 -Output D:\Movies # also copy the exe into your video folder
 .\build.ps1 -Gnu             # force the GNU toolchain (picked automatically without Visual Studio)
@@ -234,6 +234,3 @@ Or by hand:
 cargo build --release                                     # on Windows
 cargo build --release --target x86_64-pc-windows-gnu      # cross-compile from Linux (needs mingw-w64)
 ```
-
-Cargo names the exe `lap24hub.exe` (a dot isn't allowed in a crate name);
-`build.ps1` copies it out as `lap24.hub.exe`. Both work the same.

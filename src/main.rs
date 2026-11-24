@@ -1,4 +1,4 @@
-//! lap24.hub: share the current folder over the LAN so VLC (PC, phone, TV)
+//! lap24hub: share the current folder over the LAN so VLC (PC, phone, TV)
 //! can play the videos. HTTP + M3U playlist + Range seeking + DLNA/UPnP.
 
 mod dlna;
@@ -11,10 +11,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 const HELP: &str = "\
-lap24.hub - share a video folder with VLC over the local network (LAN)
+lap24hub - share a video folder with VLC over the local network (LAN)
 
-Usage: lap24.hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
-                      [--no-transcode] [--encoder NAME] [--sub-lang TAG]
+Usage: lap24hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
+                     [--no-transcode] [--encoder NAME] [--sub-lang TAG]
 
   FOLDER       Folder to share (default: current directory)
   --port N     HTTP port (default: 8080; tries the next port if busy)
@@ -27,7 +27,7 @@ Usage: lap24.hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
   --encoder NAME  ffmpeg H.264 encoder (default: libx264; GPU options:
                   h264_nvenc, h264_qsv, h264_amf)
 
-Transcoding: put ffmpeg.exe and ffprobe.exe next to lap24.hub.exe (or on
+Transcoding: put ffmpeg.exe and ffprobe.exe next to lap24hub.exe (or on
 PATH). Videos a TV can't decode (HEVC/x265, 10-bit, VP9, AV1) are then
 converted to H.264 while streaming. Other files are sent as-is.
   -h, --help   Show this help
@@ -240,7 +240,7 @@ fn main() {
         .unwrap_or_else(|| shown_root.clone());
 
     let device = if args.dlna {
-        let name = args.name.clone().unwrap_or_else(|| format!("lap24.hub - {folder_name} ({host})"));
+        let name = args.name.clone().unwrap_or_else(|| format!("lap24hub - {folder_name} ({host})"));
         let dev: &'static dlna::Device = Box::leak(Box::new(dlna::Device::new(name, &format!("{host}|{shown_root}"))));
         Some(dev)
     } else {
@@ -277,7 +277,7 @@ fn main() {
     }
 
     println!("============================================================");
-    println!(" lap24.hub {}  -  media server for VLC", env!("CARGO_PKG_VERSION"));
+    println!(" lap24hub {}  -  media server for VLC", env!("CARGO_PKG_VERSION"));
     println!("============================================================");
     println!(" Folder   : {shown_root}");
     println!(
@@ -323,7 +323,7 @@ fn main() {
         }
         None if args.transcode => {
             println!(" Transcoding: off (ffmpeg.exe + ffprobe.exe not found next to");
-            println!("   lap24.hub.exe or on PATH). HEVC videos may not play on TVs.");
+            println!("   lap24hub.exe or on PATH). HEVC videos may not play on TVs.");
         }
         None => println!(" Transcoding: off (--no-transcode)."),
     }
