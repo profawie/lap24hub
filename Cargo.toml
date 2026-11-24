@@ -1,6 +1,6 @@
 [package]
-name = "layaraku"
-version = "1.2.0"
+name = "lap24hub"
+version = "0.1.2"
 edition = "2024"
 
 [dependencies]

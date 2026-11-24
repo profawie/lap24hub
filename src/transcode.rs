@@ -7,7 +7,7 @@
 //! jumps to the front of the queue and is streamed live meanwhile (no
 //! seeking in that case).
 //!
-//! ffmpeg.exe / ffprobe.exe are looked up next to layaraku.exe first, then
+//! ffmpeg.exe / ffprobe.exe are looked up next to lap24hub.exe first, then
 //! on PATH. Output: H.264 video (max 1080p), every audio track as AAC
 //! stereo, and the subtitles (embedded text ones plus sibling
 //! .srt/.ass/.vtt files) as selectable mov_text tracks.
@@ -20,7 +20,7 @@
 //! - fragmented MP4 needs audio parameters up front, which E-AC3 copied from
 //!   the source doesn't provide, so audio is re-encoded to AAC.
 //!
-//! ffmpeg runs in layaraku's console, so Ctrl+C or closing the window
+//! ffmpeg runs in lap24hub's console, so Ctrl+C or closing the window
 //! stops it too; an unfinished `.part` file is simply redone next time.
 
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -170,7 +170,7 @@ impl Transcoder {
     /// client as fragmented MP4.
     pub fn stream(&self, out: &mut TcpStream, path: &Path, subs: &[PathBuf], head: bool) -> io::Result<()> {
         let hdr = format!(
-            "HTTP/1.1 200 OK\r\nServer: LayarAku/{}\r\nConnection: close\r\nContent-Type: video/mp4\r\n\
+            "HTTP/1.1 200 OK\r\nServer: lap24hub/{}\r\nConnection: close\r\nContent-Type: video/mp4\r\n\
              transferMode.dlna.org: Streaming\r\ncontentFeatures.dlna.org: {TC_FEATURES}\r\n\r\n",
             env!("CARGO_PKG_VERSION")
         );
