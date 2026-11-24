@@ -1,4 +1,4 @@
-//! LayarAku: share the current folder over the LAN so VLC (PC, phone, TV)
+//! lap24.hub: share the current folder over the LAN so VLC (PC, phone, TV)
 //! can play the videos. HTTP + M3U playlist + Range seeking + DLNA/UPnP.
 
 mod dlna;
@@ -11,9 +11,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 const HELP: &str = "\
-LayarAku - share a video folder with VLC over the local network (LAN)
+lap24.hub - share a video folder with VLC over the local network (LAN)
 
-Usage: layaraku.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
+Usage: lap24.hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
                      [--no-transcode] [--encoder NAME] [--sub-lang TAG]
 
   FOLDER       Folder to share (default: current directory)
@@ -27,7 +27,7 @@ Usage: layaraku.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
   --encoder NAME  ffmpeg H.264 encoder (default: libx264; GPU options:
                   h264_nvenc, h264_qsv, h264_amf)
 
-Transcoding: put ffmpeg.exe and ffprobe.exe next to layaraku.exe (or on
+Transcoding: put ffmpeg.exe and ffprobe.exe next to lap24.hub.exe (or on
 PATH). Videos a TV can't decode (HEVC/x265, 10-bit, VP9, AV1) are then
 converted to H.264 while streaming. Other files are sent as-is.
   -h, --help   Show this help
@@ -68,10 +68,10 @@ fn parse_args() -> Result<Args, String> {
     Ok(a)
 }
 
-/// Folder for converted videos: `.layaraku-cache` inside the shared folder
+/// Folder for converted videos: `.lap24hub-cache` inside the shared folder
 /// (hidden from listings), or the temp folder if that isn't writable.
-/// A cache from before the rename (`.rustmedia-cache`) is moved into it,
-/// never deleted; if it can't be renamed it is used as it is.
+/// Caches from earlier names (`.layaraku-cache`, `.rustmedia-cache`) are
+/// moved into it, never deleted; if one can't be renamed it is used as it is.
 fn cache_dir(root: &std::path::Path) -> PathBuf {
     let writable = |d: &std::path::Path| {
         std::fs::create_dir_all(d).is_ok() && {
@@ -81,14 +81,26 @@ fn cache_dir(root: &std::path::Path) -> PathBuf {
             ok
         }
     };
-    let preferred = migrate_cache(root.join(".rustmedia-cache"), root.join(".layaraku-cache"));
+    let preferred = migrate_all(root, ".", ".lap24hub-cache");
     if writable(&preferred) {
         return preferred;
     }
     let tmp = std::env::temp_dir();
-    let fallback = migrate_cache(tmp.join("rustmedia-cache"), tmp.join("layaraku-cache"));
+    let fallback = migrate_all(&tmp, "", "lap24hub-cache");
     let _ = std::fs::create_dir_all(&fallback);
     fallback
+}
+
+/// Earlier product names whose cache folders are carried over, newest first.
+const OLD_CACHE_NAMES: [&str; 2] = ["layaraku-cache", "rustmedia-cache"];
+
+/// Move every old-named cache in `dir` into `new_name`; returns the folder to use.
+fn migrate_all(dir: &std::path::Path, prefix: &str, new_name: &str) -> PathBuf {
+    let mut target = dir.join(new_name);
+    for old in OLD_CACHE_NAMES {
+        target = migrate_cache(dir.join(format!("{prefix}{old}")), target);
+    }
+    target
 }
 
 /// Pick the cache folder to use: `new`, after moving the old cache (`old`)
@@ -228,7 +240,7 @@ fn main() {
         .unwrap_or_else(|| shown_root.clone());
 
     let device = if args.dlna {
-        let name = args.name.clone().unwrap_or_else(|| format!("LayarAku - {folder_name} ({host})"));
+        let name = args.name.clone().unwrap_or_else(|| format!("lap24.hub - {folder_name} ({host})"));
         let dev: &'static dlna::Device = Box::leak(Box::new(dlna::Device::new(name, &format!("{host}|{shown_root}"))));
         Some(dev)
     } else {
@@ -265,7 +277,7 @@ fn main() {
     }
 
     println!("============================================================");
-    println!(" LayarAku {}  -  media server for VLC", env!("CARGO_PKG_VERSION"));
+    println!(" lap24.hub {}  -  media server for VLC", env!("CARGO_PKG_VERSION"));
     println!("============================================================");
     println!(" Folder   : {shown_root}");
     println!(
@@ -311,7 +323,7 @@ fn main() {
         }
         None if args.transcode => {
             println!(" Transcoding: off (ffmpeg.exe + ffprobe.exe not found next to");
-            println!("   layaraku.exe or on PATH). HEVC videos may not play on TVs.");
+            println!("   lap24.hub.exe or on PATH). HEVC videos may not play on TVs.");
         }
         None => println!(" Transcoding: off (--no-transcode)."),
     }
@@ -333,9 +345,9 @@ mod tests {
 
     #[test]
     fn old_cache_is_moved_not_deleted() {
-        let base = std::env::temp_dir().join(format!("layaraku-mig-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("lap24hub-mig-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
-        let (old, new) = (base.join(".rustmedia-cache"), base.join(".layaraku-cache"));
+        let (old, new) = (base.join(".rustmedia-cache"), base.join(".lap24hub-cache"));
 
         // Only the old folder: it is renamed.
         std::fs::create_dir_all(&old).unwrap();
@@ -356,6 +368,21 @@ mod tests {
         // No old folder: the new path is used.
         let _ = std::fs::remove_dir_all(&base);
         assert_eq!(migrate_cache(old.clone(), new.clone()), new);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn both_old_names_are_carried_over() {
+        let base = std::env::temp_dir().join(format!("lap24hub-mig2-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        for (dir, file) in [(".layaraku-cache", "l.mp4"), (".rustmedia-cache", "r.mp4")] {
+            std::fs::create_dir_all(base.join(dir)).unwrap();
+            std::fs::write(base.join(dir).join(file), file).unwrap();
+        }
+        let got = super::migrate_all(&base, ".", ".lap24hub-cache");
+        assert_eq!(got, base.join(".lap24hub-cache"));
+        assert!(got.join("l.mp4").exists() && got.join("r.mp4").exists());
+        assert!(!base.join(".layaraku-cache").exists() && !base.join(".rustmedia-cache").exists());
         let _ = std::fs::remove_dir_all(&base);
     }
 }

@@ -11,10 +11,11 @@ jobs:
       - uses: actions/checkout@v4
       - run: cargo test --release
       - run: cargo build --release
+      - run: Copy-Item target/release/lap24hub.exe lap24.hub.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: layaraku-windows-x64
-          path: target/release/layaraku.exe
+          name: lap24.hub-windows-x64
+          path: lap24.hub.exe
       # Exercise build.ps1 and the GNU-toolchain path (no Visual Studio needed).
       - name: build.ps1 --gnu
         shell: powershell
