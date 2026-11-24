@@ -14,7 +14,7 @@ const HELP: &str = "\
 lap24.hub - share a video folder with VLC over the local network (LAN)
 
 Usage: lap24.hub.exe [FOLDER] [--port N] [--name NAME] [--no-dlna]
-                     [--no-transcode] [--encoder NAME] [--sub-lang TAG]
+                      [--no-transcode] [--encoder NAME] [--sub-lang TAG]
 
   FOLDER       Folder to share (default: current directory)
   --port N     HTTP port (default: 8080; tries the next port if busy)
